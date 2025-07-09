@@ -6,10 +6,17 @@ use PHPMailer\PHPMailer\SMTP;
 // Set content type first
 header('Content-Type: application/json');
 
+// Initialize response array
+$response = [
+    'success' => false,
+    'error' => null
+];
+
 // Only process POST requests
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
+    $response['error'] = 'Method not allowed';
+    echo json_encode($response);
     exit;
 }
 
@@ -20,9 +27,18 @@ $email = filter_var(trim($_POST["email"] ?? ''), FILTER_SANITIZE_EMAIL);
 $message = trim($_POST["message"] ?? '');
 
 // Validate inputs
-if (empty($name) || empty($message) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+if (empty($name)) {
+    $response['error'] = 'Name is required';
+} elseif (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $response['error'] = 'Valid email is required';
+} elseif (empty($message)) {
+    $response['error'] = 'Message is required';
+}
+
+// If validation errors, return them
+if ($response['error'] !== null) {
     http_response_code(400);
-    echo json_encode(['error' => 'Please fill all fields correctly']);
+    echo json_encode($response);
     exit;
 }
 
@@ -39,21 +55,24 @@ try {
     $mail->SMTPAuth   = true;
     $mail->Username   = 'your-email@example.com'; // SMTP username
     $mail->Password   = 'your-smtp-password';      // SMTP password
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // Enable TLS encryption
-    $mail->Port       = 587; // TCP port to connect to
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port       = 587;
     
     // Recipients
     $mail->setFrom($email, $name);
-    $mail->addAddress($to); // Add a recipient
+    $mail->addAddress($to);
+    $mail->addReplyTo($email, $name);
     
     // Content
     $mail->Subject = "New Contact Message from $name";
     $mail->Body    = "Name: $name\nEmail: $email\n\nMessage:\n$message";
     
     $mail->send();
-    echo json_encode(['success' => true]);
+    $response['success'] = true;
+    echo json_encode($response);
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => "Message could not be sent. Mailer Error: {$mail->ErrorInfo}"]);
+    $response['error'] = "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+    echo json_encode($response);
 }
 ?>
