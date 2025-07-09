@@ -151,27 +151,39 @@ document.getElementById('toggleDark').onclick = () => {
 
 
   
-  const form = document.getElementById('contactForm');
-  const popup = document.getElementById('successPopup');
-
-  form.addEventListener('submit', async function (e) {
+document.getElementById('contactForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    
+    const form = e.target;
     const formData = new FormData(form);
-
-    const response = await fetch('sendmail.php', {
-      method: 'POST',
-      body: formData
+    const submitButton = form.querySelector('button[type="submit"]');
+    
+    // Disable button during submission
+    submitButton.disabled = true;
+    submitButton.innerHTML = 'Sending...';
+    
+    fetch('send_email.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('successPopup').classList.remove('hidden');
+            form.reset();
+        } else {
+            alert(data.error || 'Something went wrong');
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error.message);
+    })
+    .finally(() => {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '🚀 Send Message';
     });
+});
 
-    if (response.ok) {
-      popup.classList.remove('hidden');
-      popup.classList.add('flex');
-      form.reset();
-    }
-  });
-
-  function closePopup() {
-    popup.classList.remove('flex');
-    popup.classList.add('hidden');
-  }
-
+function closePopup() {
+    document.getElementById('successPopup').classList.add('hidden');
+}
